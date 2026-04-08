@@ -222,12 +222,10 @@ prompt_root_policy() {
     case "$answer" in
       y|yes)
         ROOT_POLICY="password"
-        ROOT_PASSWORD="$(prompt_password 'Root password: ')"
         return
         ;;
       ""|n|no)
         ROOT_POLICY="lock"
-        ROOT_PASSWORD=""
         return
         ;;
       *)
