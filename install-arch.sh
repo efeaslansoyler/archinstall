@@ -482,10 +482,10 @@ EOF
 
 configure_user_accounts() {
   useradd -m -G wheel -s /bin/bash "$USERNAME_VALUE"
-  printf '%s:%s\n' "$USERNAME_VALUE" "$USER_PASSWORD" | chpasswd
+  printf '%s\n%s\n' "$USER_PASSWORD" "$USER_PASSWORD" | passwd "$USERNAME_VALUE"
 
   if [[ "$ROOT_POLICY" == "password" ]]; then
-    printf 'root:%s\n' "$ROOT_PASSWORD" | chpasswd
+    printf '%s\n%s\n' "$ROOT_PASSWORD" "$ROOT_PASSWORD" | passwd root
   else
     passwd -l root
   fi
