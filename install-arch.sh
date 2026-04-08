@@ -474,12 +474,12 @@ EOF
 
 configure_user_accounts() {
   useradd -m -G wheel -s /bin/bash "$USERNAME_VALUE"
-  echo "Set password for user '$USERNAME_VALUE':"
-  passwd "$USERNAME_VALUE"
+  echo "Set password for user '$USERNAME_VALUE':" > /dev/tty
+  passwd "$USERNAME_VALUE" < /dev/tty > /dev/tty 2>&1
 
   if [[ "$ROOT_POLICY" == "password" ]]; then
-    echo "Set password for root:"
-    passwd root
+    echo "Set password for root:" > /dev/tty
+    passwd root < /dev/tty > /dev/tty 2>&1
   else
     passwd -l root
   fi
