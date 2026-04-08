@@ -58,7 +58,7 @@ sudo ./install-arch.sh
 - The script intentionally does not hardcode any disk names. You must choose the disk each run.
 - Root is locked by default unless you choose to set a root password.
 - The script uses the official CachyOS repo bootstrap script at install time so repo and keyring setup can stay current.
-- The script currently defaults locale to `en_US.UTF-8`, keymap to `us`, and timezone to the live environment timezone if available, otherwise `UTC`.
+- The script currently defaults locale to `en_US.UTF-8`, keymap to `trq`, and timezone to `Europe/Istanbul`.
 - The script installs snapshot-related tooling, but it does not build a full snapper policy or automatic rollback workflow yet.
 
 ## Suggested Validation

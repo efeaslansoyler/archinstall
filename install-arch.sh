@@ -7,7 +7,8 @@ TARGET_MOUNT="/mnt"
 CRYPT_NAME="cryptroot"
 EFI_SIZE_MIB=1024
 DEFAULT_LOCALE="en_US.UTF-8"
-DEFAULT_KEYMAP="us"
+DEFAULT_KEYMAP="trq"
+DEFAULT_TIMEZONE="Europe/Istanbul"
 DEFAULT_ZRAM_SIZE_EXPR='min(ram / 2, 8192)'
 
 SELECTED_DISK=""
@@ -15,7 +16,7 @@ EFI_PART=""
 ROOT_PART=""
 MICROCODE_PACKAGE=""
 MICROCODE_IMAGE=""
-LIVE_TIMEZONE="UTC"
+LIVE_TIMEZONE="$DEFAULT_TIMEZONE"
 HOSTNAME_VALUE=""
 USERNAME_VALUE=""
 ROOT_POLICY="lock"
@@ -80,14 +81,6 @@ require_uefi() {
 require_network() {
   curl -fsSI --connect-timeout 10 https://archlinux.org >/dev/null ||
     die "Network check failed. Bring the live environment online before installing."
-}
-
-detect_timezone() {
-  local tz
-  tz="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
-  if [[ -n "$tz" && "$tz" != "n/a" && -e "/usr/share/zoneinfo/$tz" ]]; then
-    LIVE_TIMEZONE="$tz"
-  fi
 }
 
 detect_microcode() {
@@ -380,6 +373,7 @@ configure_target_system() {
     MICROCODE_IMAGE="$MICROCODE_IMAGE" \
     DEFAULT_LOCALE="$DEFAULT_LOCALE" \
     DEFAULT_KEYMAP="$DEFAULT_KEYMAP" \
+    DEFAULT_TIMEZONE="$DEFAULT_TIMEZONE" \
     DEFAULT_ZRAM_SIZE_EXPR="$DEFAULT_ZRAM_SIZE_EXPR" \
     LIVE_TIMEZONE_B64="$timezone_b64" \
     bash -se <<'CHROOT_EOF'
@@ -406,7 +400,9 @@ EOF
 KEYMAP=${DEFAULT_KEYMAP}
 EOF
 
-  if [[ -e "/usr/share/zoneinfo/${LIVE_TIMEZONE}" ]]; then
+  if [[ -e "/usr/share/zoneinfo/${DEFAULT_TIMEZONE}" ]]; then
+    ln -sf "/usr/share/zoneinfo/${DEFAULT_TIMEZONE}" /etc/localtime
+  elif [[ -e "/usr/share/zoneinfo/${LIVE_TIMEZONE}" ]]; then
     ln -sf "/usr/share/zoneinfo/${LIVE_TIMEZONE}" /etc/localtime
   else
     ln -sf /usr/share/zoneinfo/UTC /etc/localtime
@@ -543,7 +539,6 @@ main() {
   require_clean_mountpoint
   require_uefi
   require_network
-  detect_timezone
   detect_microcode
   select_disk
   collect_identity_inputs
