@@ -21,9 +21,10 @@ This repo contains a single guided installer script for running from the Arch Li
 - Destructive disk confirmation by full path
 - Hostname
 - Username
-- User password
 - Root password policy
 - LUKS passphrase
+- Interactive user password entry inside `arch-chroot`
+- Optional interactive root password entry inside `arch-chroot`
 
 ## What The Script Does
 

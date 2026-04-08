@@ -19,8 +19,6 @@ LIVE_TIMEZONE="UTC"
 HOSTNAME_VALUE=""
 USERNAME_VALUE=""
 ROOT_POLICY="lock"
-USER_PASSWORD=""
-ROOT_PASSWORD=""
 LUKS_PASSPHRASE=""
 
 die() {
@@ -273,7 +271,6 @@ collect_identity_inputs() {
   echo "Installer prompts:"
   prompt_hostname
   prompt_username
-  USER_PASSWORD="$(prompt_password 'User password: ')"
   prompt_root_policy
   LUKS_PASSPHRASE="$(prompt_password 'LUKS passphrase: ')"
 }
@@ -344,6 +341,7 @@ pacstrap_base() {
     mkinitcpio
     nano
     networkmanager
+    openssl
     snap-pac
     snapper
     sudo
@@ -361,15 +359,13 @@ pacstrap_base() {
 
 configure_target_system() {
   local root_part_uuid
-  local hostname_b64 username_b64 user_password_b64 root_password_b64 luks_b64 timezone_b64
+  local hostname_b64 username_b64 luks_b64 timezone_b64
 
   root_part_uuid="$(blkid -s UUID -o value "$ROOT_PART")"
   [[ -n "$root_part_uuid" ]] || die "Failed to read UUID for $ROOT_PART"
 
   hostname_b64="$(printf '%s' "$HOSTNAME_VALUE" | base64 -w 0)"
   username_b64="$(printf '%s' "$USERNAME_VALUE" | base64 -w 0)"
-  user_password_b64="$(printf '%s' "$USER_PASSWORD" | base64 -w 0)"
-  root_password_b64="$(printf '%s' "$ROOT_PASSWORD" | base64 -w 0)"
   luks_b64="$(printf '%s' "$LUKS_PASSPHRASE" | base64 -w 0)"
   timezone_b64="$(printf '%s' "$LIVE_TIMEZONE" | base64 -w 0)"
 
@@ -378,8 +374,6 @@ configure_target_system() {
     ROOT_PART_UUID="$root_part_uuid" \
     HOSTNAME_B64="$hostname_b64" \
     USERNAME_B64="$username_b64" \
-    USER_PASSWORD_B64="$user_password_b64" \
-    ROOT_PASSWORD_B64="$root_password_b64" \
     ROOT_POLICY="$ROOT_POLICY" \
     LUKS_PASSPHRASE_B64="$luks_b64" \
     MICROCODE_PACKAGE="$MICROCODE_PACKAGE" \
@@ -397,8 +391,6 @@ decode_b64() {
 
 HOSTNAME_VALUE="$(decode_b64 "$HOSTNAME_B64")"
 USERNAME_VALUE="$(decode_b64 "$USERNAME_B64")"
-USER_PASSWORD="$(decode_b64 "$USER_PASSWORD_B64")"
-ROOT_PASSWORD="$(decode_b64 "$ROOT_PASSWORD_B64")"
 LUKS_PASSPHRASE="$(decode_b64 "$LUKS_PASSPHRASE_B64")"
 LIVE_TIMEZONE="$(decode_b64 "$LIVE_TIMEZONE_B64")"
 
@@ -482,10 +474,12 @@ EOF
 
 configure_user_accounts() {
   useradd -m -G wheel -s /bin/bash "$USERNAME_VALUE"
-  printf '%s\n%s\n' "$USER_PASSWORD" "$USER_PASSWORD" | passwd "$USERNAME_VALUE"
+  echo "Set password for user '$USERNAME_VALUE':"
+  passwd "$USERNAME_VALUE"
 
   if [[ "$ROOT_POLICY" == "password" ]]; then
-    printf '%s\n%s\n' "$ROOT_PASSWORD" "$ROOT_PASSWORD" | passwd root
+    echo "Set password for root:"
+    passwd root
   else
     passwd -l root
   fi
