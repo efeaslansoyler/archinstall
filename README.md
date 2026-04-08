@@ -22,7 +22,7 @@ This repo contains a single guided installer script for running from the Arch Li
 - Hostname
 - Username
 - Root password policy
-- LUKS passphrase
+- Interactive LUKS passphrase entry during disk encryption and unlock
 - Interactive user password entry inside `arch-chroot`
 - Optional interactive root password entry inside `arch-chroot`
 

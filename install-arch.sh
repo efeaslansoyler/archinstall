@@ -20,7 +20,6 @@ LIVE_TIMEZONE="$DEFAULT_TIMEZONE"
 HOSTNAME_VALUE=""
 USERNAME_VALUE=""
 ROOT_POLICY="lock"
-LUKS_PASSPHRASE=""
 
 die() {
   echo "ERROR: $*" >&2
@@ -194,28 +193,6 @@ prompt_nonempty() {
   done
 }
 
-prompt_password() {
-  local prompt="$1"
-  local first second
-
-  while true; do
-    read -rsp "$prompt" first
-    echo
-    [[ -n "$first" ]] || {
-      echo "Password cannot be empty."
-      continue
-    }
-    read -rsp "Confirm: " second
-    echo
-    if [[ "$first" != "$second" ]]; then
-      echo "Values did not match. Try again."
-      continue
-    fi
-    printf '%s\n' "$first"
-    return
-  done
-}
-
 prompt_hostname() {
   while true; do
     HOSTNAME_VALUE="$(prompt_nonempty 'Hostname: ')"
@@ -265,7 +242,6 @@ collect_identity_inputs() {
   prompt_hostname
   prompt_username
   prompt_root_policy
-  LUKS_PASSPHRASE="$(prompt_password 'LUKS passphrase: ')"
 }
 
 wipe_and_partition_disk() {
@@ -292,8 +268,10 @@ format_and_mount() {
   mkfs.fat -F32 "$EFI_PART"
 
   log "Creating LUKS2 container"
-  printf '%s' "$LUKS_PASSPHRASE" | cryptsetup luksFormat --batch-mode --type luks2 --key-file - "$ROOT_PART"
-  printf '%s' "$LUKS_PASSPHRASE" | cryptsetup open --key-file - "$ROOT_PART" "$CRYPT_NAME"
+  echo "Enter the LUKS passphrase for the new encrypted root volume." > /dev/tty
+  cryptsetup luksFormat --type luks2 "$ROOT_PART" < /dev/tty > /dev/tty 2>&1
+  echo "Unlock the new LUKS container to continue the installation." > /dev/tty
+  cryptsetup open "$ROOT_PART" "$CRYPT_NAME" < /dev/tty > /dev/tty 2>&1
 
   log "Creating Btrfs filesystem"
   mkfs.btrfs -f -L archlinux "$mapper_path"
@@ -352,14 +330,13 @@ pacstrap_base() {
 
 configure_target_system() {
   local root_part_uuid
-  local hostname_b64 username_b64 luks_b64 timezone_b64
+  local hostname_b64 username_b64 timezone_b64
 
   root_part_uuid="$(blkid -s UUID -o value "$ROOT_PART")"
   [[ -n "$root_part_uuid" ]] || die "Failed to read UUID for $ROOT_PART"
 
   hostname_b64="$(printf '%s' "$HOSTNAME_VALUE" | base64 -w 0)"
   username_b64="$(printf '%s' "$USERNAME_VALUE" | base64 -w 0)"
-  luks_b64="$(printf '%s' "$LUKS_PASSPHRASE" | base64 -w 0)"
   timezone_b64="$(printf '%s' "$LIVE_TIMEZONE" | base64 -w 0)"
 
   log "Configuring the installed system inside arch-chroot"
@@ -368,7 +345,6 @@ configure_target_system() {
     HOSTNAME_B64="$hostname_b64" \
     USERNAME_B64="$username_b64" \
     ROOT_POLICY="$ROOT_POLICY" \
-    LUKS_PASSPHRASE_B64="$luks_b64" \
     MICROCODE_PACKAGE="$MICROCODE_PACKAGE" \
     MICROCODE_IMAGE="$MICROCODE_IMAGE" \
     DEFAULT_LOCALE="$DEFAULT_LOCALE" \
@@ -385,7 +361,6 @@ decode_b64() {
 
 HOSTNAME_VALUE="$(decode_b64 "$HOSTNAME_B64")"
 USERNAME_VALUE="$(decode_b64 "$USERNAME_B64")"
-LUKS_PASSPHRASE="$(decode_b64 "$LUKS_PASSPHRASE_B64")"
 LIVE_TIMEZONE="$(decode_b64 "$LIVE_TIMEZONE_B64")"
 
 configure_locale_and_time() {
@@ -456,7 +431,7 @@ title   Arch Linux (linux-cachyos)
 linux   /vmlinuz-linux-cachyos
 initrd  /${MICROCODE_IMAGE}
 initrd  /initramfs-linux-cachyos.img
-options rd.luks.name=${ROOT_PART_UUID}=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rw quiet
+options rd.vconsole.keymap=${DEFAULT_KEYMAP} vconsole.keymap=${DEFAULT_KEYMAP} rd.luks.name=${ROOT_PART_UUID}=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rw
 EOF
 
   cat > /boot/loader/entries/arch-cachyos-fallback.conf <<EOF
@@ -464,7 +439,7 @@ title   Arch Linux (linux-cachyos fallback)
 linux   /vmlinuz-linux-cachyos
 initrd  /${MICROCODE_IMAGE}
 initrd  /initramfs-linux-cachyos-fallback.img
-options rd.luks.name=${ROOT_PART_UUID}=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rw
+options rd.vconsole.keymap=${DEFAULT_KEYMAP} vconsole.keymap=${DEFAULT_KEYMAP} rd.luks.name=${ROOT_PART_UUID}=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rw
 EOF
 }
 
